@@ -1,0 +1,14 @@
+# Bytecode and cache
+__pycache__/
+*.pyc
+
+# Virtual environment
+venv/
+.env/
+
+# IDE settings
+.idea/
+.vscode/
+
+# Test cache
+.pytest_cache/
