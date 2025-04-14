@@ -2,7 +2,7 @@ import subprocess
 import json
 import os
 
-SCRIPT = 'basic_checker.py'
+SCRIPT = 'api_misuse_checker.py'
 TEST_DIR = 'test_cases'
 
 def run_checker(target_file):
@@ -49,3 +49,9 @@ def test_pbkdf2_hardcoded_salt():
     output = run_checker('test_pbkdf2_hardcoded_salt.py')
     issues = output.get(os.path.join(TEST_DIR, 'test_pbkdf2_hardcoded_salt.py'), [])
     assert any('hardcoded salt' in issue['issue'].lower() for issue in issues)
+
+def test_cross_function_aes_misuse():
+    output = run_checker('test_cross_function_aes_misuse.py')
+    issues = output.get(os.path.join(TEST_DIR, 'test_cross_function_aes_misuse.py'), [])
+    assert any('ECB' in issue['issue'] for issue in issues)
+    assert any('traced to hardcoded' in issue['issue'] for issue in issues)
