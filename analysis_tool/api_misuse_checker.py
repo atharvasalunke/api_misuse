@@ -1,3 +1,4 @@
+import sys
 import os
 import ast
 import json
@@ -178,7 +179,6 @@ def analyze_path(path):
     return results
 
 def main():
-    import sys
     if len(sys.argv) < 2:
         print("Usage: python api_misuse_checker.py <file_or_directory> [<file_or_directory> ...]")
     else:
