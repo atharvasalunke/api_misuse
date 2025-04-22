@@ -11,6 +11,7 @@ class CryptoAnalyzer(ast.NodeVisitor):
         self.call_graph = {}
         self.current_function = None
 
+    # Store function definitions and track current function context
     def visit_FunctionDef(self, node):
         self.function_defs[node.name] = node
         previous_function = self.current_function
@@ -18,6 +19,7 @@ class CryptoAnalyzer(ast.NodeVisitor):
         self.generic_visit(node)
         self.current_function = previous_function
 
+    # Detect hardcoded string or byte values assigned to variables
     def visit_Assign(self, node):
         if isinstance(node.value, ast.Constant) and isinstance(node.value.value, (str, bytes)):
             for target in node.targets:
@@ -25,6 +27,7 @@ class CryptoAnalyzer(ast.NodeVisitor):
                     self.hardcoded_keys[target.id] = node.lineno
         self.generic_visit(node)
 
+    # Process function calls, track call graph, and check cryptographic API usage
     def visit_Call(self, node):
         func_name = self._get_call_func_name(node)
         if self.current_function and func_name:
@@ -38,11 +41,13 @@ class CryptoAnalyzer(ast.NodeVisitor):
 
         self.generic_visit(node)
 
+    # Maintain a call graph mapping callers to callees
     def _track_function_call(self, caller, callee):
         if caller not in self.call_graph:
             self.call_graph[caller] = set()
         self.call_graph[caller].add(callee)
 
+    # Perform backward data flow analysis to trace arguments to their source
     def trace_data_flow(self):
         # Build reverse call graph (callee -> list of callers)
         reverse_graph = {}
@@ -62,6 +67,7 @@ class CryptoAnalyzer(ast.NodeVisitor):
                                 arg_name = suspect_arg.id
                                 self._trace_argument_source(func_name, arg_name, {func_name}, reverse_graph, usage_site=(func_name, node.lineno))
 
+    # Recursively trace the source of an argument to detect if it's hardcoded
     def _trace_argument_source(self, func_name, arg_name, visited, reverse_graph, usage_site):
         # Check if variable is hardcoded in this function
         func_node = self.function_defs.get(func_name)
@@ -97,6 +103,7 @@ class CryptoAnalyzer(ast.NodeVisitor):
                             if isinstance(arg, ast.Name):
                                 self._trace_argument_source(caller, arg.id, visited, reverse_graph, usage_site)
 
+    # Extract the name of a called function from an AST node
     @staticmethod
     def _get_call_func_name(node):
         if isinstance(node.func, ast.Attribute):
@@ -106,6 +113,7 @@ class CryptoAnalyzer(ast.NodeVisitor):
             return node.func.id
         return None
 
+    # Check for insecure AES modes and hardcoded keys in AES.new() calls
     def _check_aes_usage(self, node):
         if len(node.args) >= 2:
             mode_arg = node.args[1]
@@ -121,6 +129,7 @@ class CryptoAnalyzer(ast.NodeVisitor):
             if key_name in self.hardcoded_keys:
                 self.issues.append((node.lineno, f"Hardcoded key used in AES.new(): {key_name}"))
 
+    # Check for hardcoded or missing salts in PBKDF2 usage
     def _check_pbkdf2_usage(self, node):
         salt_var_name = None
 
@@ -147,6 +156,7 @@ class CryptoAnalyzer(ast.NodeVisitor):
         if salt_var_name and salt_var_name in self.hardcoded_keys:
             self.issues.append((node.lineno, f"PBKDF2 used with hardcoded salt variable: {salt_var_name}"))
 
+    # Generate a sorted list of detected issues with line numbers
     def report(self):
         return [
             {
@@ -157,6 +167,7 @@ class CryptoAnalyzer(ast.NodeVisitor):
         ]
 
 
+# Parse and analyze a single Python file for crypto API misuses
 def analyze_file(filepath):
     with open(filepath, "r") as file:
         source = file.read()
@@ -166,6 +177,7 @@ def analyze_file(filepath):
     analyzer.trace_data_flow()
     return analyzer.report()
 
+# Recursively analyze all Python files in a directory or analyze a single file
 def analyze_path(path):
     results = {}
     if os.path.isfile(path) and path.endswith('.py'):
@@ -178,6 +190,7 @@ def analyze_path(path):
                     results[full_path] = analyze_file(full_path)
     return results
 
+# Entry point to run analysis on given files or directories and print JSON results
 def main():
     if len(sys.argv) < 2:
         print("Usage: python api_misuse_checker.py <file_or_directory> [<file_or_directory> ...]")
