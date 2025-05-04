@@ -1,3 +1,5 @@
+.DS_Store
+
 # Bytecode and cache
 __pycache__/
 *.pyc
